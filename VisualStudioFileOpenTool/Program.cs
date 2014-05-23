@@ -11,31 +11,42 @@ namespace VisualStudioFileOpenTool
 		[STAThread]
 		static void Main(string[] args)
 		{
+            if (args.Length < 2)
+            {
+                Console.WriteLine("usage: <version> <file path> <line number>");
+                return;
+            }
+
 			try
 			{
-				if (args != null && args.Length > 0)
-				{
-					int vsVersion;
-					int.TryParse(args[0], out vsVersion);
-					string vsString = GetVersionString(vsVersion);
-					if(string.IsNullOrEmpty(vsString))
-						return;
+                int vsVersion = 0;
+                if (!int.TryParse(args[0], out vsVersion))
+                {
+                    Console.Error.WriteLine("Failed to pased version!");
+                    return;
+                }
 
-					String filename = args[1];
+                string vsString = GetVersionString(vsVersion);
+                if (String.IsNullOrEmpty(vsString))
+                {
+                    Console.Error.WriteLine("Unsupported version os MSVS!");
+                    return;
+                }
 
-					int fileline;
-					int.TryParse(args[2], out fileline);
+                String filename = args[1];
+                EnvDTE80.DTE2 dte2;
+                dte2 = (EnvDTE80.DTE2)System.Runtime.InteropServices.Marshal.GetActiveObject(vsString);
+                dte2.MainWindow.Activate();
+                EnvDTE.Window w = dte2.ItemOperations.OpenFile(filename, EnvDTE.Constants.vsViewKindTextView);
 
-					EnvDTE80.DTE2 dte2;
-					dte2 = (EnvDTE80.DTE2)System.Runtime.InteropServices.Marshal.GetActiveObject(vsString);
-					dte2.MainWindow.Activate();
-					EnvDTE.Window w = dte2.ItemOperations.OpenFile(filename, EnvDTE.Constants.vsViewKindTextView);
-					((EnvDTE.TextSelection) dte2.ActiveDocument.Selection).GotoLine(fileline, true);
-				}
-				else
-				{
-					MessageBox.Show(GetHelpMessage());
-				}
+                if (args.Length >= 3)
+                {
+                    int fileline = 0;
+                    if (int.TryParse(args[2], out fileline))
+                    {
+                        ((EnvDTE.TextSelection)dte2.ActiveDocument.Selection).GotoLine(fileline, true);
+                    }
+                }
 			}
 			catch (Exception e)
 			{
@@ -45,7 +56,7 @@ namespace VisualStudioFileOpenTool
 
 		public static string GetHelpMessage()
 		{
-			var versions = new List<int>() { 2, 3, 5, 8, 10, 12 };
+			var versions = new int [] { 2, 3, 5, 8, 10, 12, 13 };
 			string s = "Trying to open specified file at spicified line in active Visual Studio \n\n";
 
 			s += "usage: <version> <file path> <line number> \n\n";
@@ -67,6 +78,8 @@ namespace VisualStudioFileOpenTool
 			//  Source: http://www.mztools.com/articles/2011/MZ2011011.aspx
 			switch (visualStudioVersionNumber)
 			{
+                case 13:
+                    return "VisualStudio.DTE.12.0";
 				case 12:
 					return "VisualStudio.DTE.11.0";
 				case 10:
@@ -81,9 +94,7 @@ namespace VisualStudioFileOpenTool
 					return "VisualStudio.DTE.7";
 			}
 
-			MessageBox.Show("Don't know this Visual Studio version. \n\n" + GetHelpMessage());
-
-			return "";
+			return String.Empty;
 		}
 	}
 }
